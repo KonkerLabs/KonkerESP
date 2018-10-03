@@ -5,7 +5,18 @@
   "repository":
   {
     "type": "git",
-    "url": "https://github.com/KonkerLabs/KonkerESP.git"
+    "url": "https://github.com/KonkerLabs/KonkerESP"
+  },
+    "export": {
+      "exclude": [
+          "extras", 
+          "docs", 
+          "tests", 
+          "test", 
+          "*.doxyfile", 
+          "*.pdf"
+      ], 
+      "include": null
   },
   "authors":
   [
@@ -22,6 +33,11 @@
   ],
   "dependencies":[],
   "version": "2.0.0",
-  "frameworks": "arduino",
-  "platforms": "*"
+      "frameworks": [
+        "arduino"
+    ],
+      "platforms": [
+        "espressif32", 
+        "espressif8266"
+    ]
 }
