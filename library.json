@@ -1,43 +1,40 @@
 {
-  "name": "KonkerESP",
-  "keywords": "Konker, espressif8266, espressif32, MQTT, rest, iot",
-  "description": "espressif8266 and espressif32 Library for Konker enabled products",
-  "repository":
-  {
-    "type": "git",
-    "url": "https://github.com/KonkerLabs/KonkerESP"
-  },
-    "export": {
-      "exclude": [
-          "extras", 
-          "docs", 
-          "tests", 
-          "test", 
-          "*.doxyfile", 
-          "*.pdf"
-      ], 
-      "include": null
-  },
-  "authors":
-  [
-    {
-      "name": "Érico Netto",
-      "email": "erico@konkerlabs.com",
-      "url": "https://www.linkedin.com/in/ericonetto",
-      "maintainer": true
-    },
-    {
-      "name": "Luis Gomes Gonzales",
-      "email": "luis@konkerlabs.com"
-    }
-  ],
-  "dependencies":[],
-  "version": "2.0.0",
-      "frameworks": [
-        "arduino"
-    ],
-      "platforms": [
-        "espressif32", 
-        "espressif8266"
-    ]
+	"name": "KonkerESP",
+	"keywords": "Konker, espressif8266, espressif32, MQTT, rest, iot",
+	"description": "espressif8266 and espressif32 Library for Konker enabled products",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/KonkerLabs/KonkerESP"
+	},
+	"export": {
+		"exclude": [
+			"extras",
+			"docs",
+			"tests",
+			"test",
+			"*.doxyfile",
+			"*.pdf"
+		],
+		"include": null
+	},
+	"authors": [{
+			"name": "Érico Netto",
+			"email": "erico@konkerlabs.com",
+			"url": "https://www.linkedin.com/in/ericonetto",
+			"maintainer": true
+		},
+		{
+			"name": "Luis Gomes Gonzales",
+			"email": "luis@konkerlabs.com"
+		}
+	],
+	"dependencies": [],
+	"version": "2.0.0",
+	"frameworks": [
+		"arduino"
+	],
+	"platforms": [
+		"espressif32",
+		"espressif8266"
+	]
 }
