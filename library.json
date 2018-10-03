@@ -20,7 +20,8 @@
       "email": "luis@konkerlabs.com"
     }
   ],
+  "dependencies":[],
   "version": "2.0.0",
   "frameworks": "arduino",
-  "platforms": "espressif8266, espressif32"
+  "platforms": "*"
 }
