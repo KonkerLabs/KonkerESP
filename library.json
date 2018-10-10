@@ -29,7 +29,31 @@
 			"email": "luis@konkerlabs.com"
 		}
 	],
-	"dependencies": [],
+	"dependencies": [
+  {
+    "name": "PubSubClient",
+    "homepage": "http://pubsubclient.knolleary.net",
+    "url": "https://github.com/knolleary/pubsubclient.git",
+    "frameworks": "arduino"
+  },
+  {
+    "name": "ArduinoJson",
+    "authors": "Benoit Blanchon",
+    "url": "https://github.com/bblanchon/ArduinoJson.git",
+    "frameworks": "arduino"
+  },
+  {
+    "name": "Crypto",
+    "authors": "Chris Ellis",
+		"url": "https://github.com/intrbiz/arduino-crypto.git"
+  }
+  ,
+  {
+    "name": "ESP32httpUpdate",
+    "authors": "Matej Sychra",
+    "url": "https://github.com/suculent/esp32-http-update.git",
+    "platforms": "espressif32"
+  }],
 	"frameworks": [
 		"arduino"
 	],
