@@ -1,0 +1,45 @@
+{
+  "name": "KonkerESP",
+  "keywords": "Konker, espressif8266, MQTT, rest, iot",
+  "description": "espressif8266 Library for Konker enabled products",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/KonkerLabs/KonkerESP/espressif8266"
+  },
+  "authors":
+  [
+    {
+      "name": "Érico Netto",
+      "email": "erico@konkerlabs.com",
+      "url": "https://www.linkedin.com/in/ericonetto",
+      "maintainer": true
+    },
+    {
+      "name": "Luis Gomes Gonzales",
+      "email": "luis@konkerlabs.com"
+    }
+  ],
+  "dependencies":[
+  {
+    "name": "PubSubClient",
+    "homepage": "http://pubsubclient.knolleary.net",
+    "url": "https://github.com/knolleary/pubsubclient.git",
+    "frameworks": "arduino"
+  },
+  {
+    "name": "ArduinoJson",
+    "authors": "Benoit Blanchon",
+    "url": "https://github.com/bblanchon/ArduinoJson.git",
+    "frameworks": "arduino"
+  },
+  {
+    "name": "Crypto",
+    "authors": "Chris Ellis",
+		"url": "https://github.com/intrbiz/arduino-crypto.git"
+  }
+  ],
+  "version": "2.0.0",
+  "frameworks": "arduino",
+  "platforms": "espressif8266"
+}

@@ -1,0 +1,52 @@
+{
+  "name": "KonkerESP",
+  "keywords": "Konker, ESP32, MQTT, rest, iot",
+  "description": "ESP32 Library for Konker enabled products",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/KonkerLabs/KonkerESP/ESP32"
+  },
+  "authors":
+  [
+    {
+      "name": "Érico Netto",
+      "email": "erico@konkerlabs.com",
+      "url": "https://www.linkedin.com/in/ericonetto",
+      "maintainer": true
+    },
+    {
+      "name": "Luis Gomes Gonzales",
+      "email": "luis@konkerlabs.com"
+    }
+  ],
+  "dependencies":[
+  {
+    "name": "PubSubClient",
+    "homepage": "http://pubsubclient.knolleary.net",
+    "url": "https://github.com/knolleary/pubsubclient.git",
+    "frameworks": "arduino"
+  },
+  {
+    "name": "ArduinoJson",
+    "authors": "Benoit Blanchon",
+    "url": "https://github.com/bblanchon/ArduinoJson.git",
+    "frameworks": "arduino"
+  },
+  {
+    "name": "Crypto",
+    "authors": "Chris Ellis",
+		"url": "https://github.com/intrbiz/arduino-crypto.git"
+  }
+  ,
+  {
+    "name": "ESP32httpUpdate",
+    "authors": "Matej Sychra",
+    "url": "https://github.com/suculent/esp32-http-update.git",
+    "platforms": "espressif32"
+  }
+  ],
+  "version": "2.0.0",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}

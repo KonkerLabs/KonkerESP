@@ -613,18 +613,15 @@ void getWifiCredentialsEncripted(){
 					}
 			}
 
-		
-
-			// reset wifi credentials from file
-			//Removing the Wifi Configuration
-			SPIFFS.remove(wifiFile);
-
-
 		}
 
 	}
 
-
+	if(gotCredentials){
+		// reset wifi credentials from file
+		//Removing the Wifi Configuration
+		SPIFFS.remove(wifiFile);
+	}
 
 	
 	webServer.send(200, "text/html", page);
@@ -652,17 +649,137 @@ void getWifiCredentialsNotEncripted(){
 			argPSK.toCharArray(wifiCredentials[i].savedPSK, 64);
 			numWifiCredentials++;
 			gotCredentials=1;
-
-
-			// reset wifi credentials from file
-			//Removing the Wifi Configuration
-			SPIFFS.remove(wifiFile);
-
 		}
+	}
+
+	if(gotCredentials){
+		// reset wifi credentials from file
+		//Removing the Wifi Configuration
+		SPIFFS.remove(wifiFile);
 	}
 
 	webServer.send(200, "text/html", page);
 }
+
+
+void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64]){
+	// reset wifi credentials from file
+	//Removing the Wifi Configuration
+	SPIFFS.remove(wifiFile);
+		//cria file system se não existir
+	spiffsMount();
+	Serial.println("Handle getWifiCredentials");
+	String page = "<http><body><b>getWifiCredentials</b></body></http>";
+
+
+	//get up to 3 wifi credentials
+	if(SSID1[0]!='\0' && PSK1[0]!='\0'){
+		Serial.println("Wifi 1");
+		strncpy(wifiCredentials[0].savedSSID,SSID1,32);
+		strncpy(wifiCredentials[0].savedPSK,PSK1,64);
+
+		numWifiCredentials++;
+		gotCredentials=1;
+
+		saveWifiConnectionInFile(wifiFile, wifiCredentials[0].savedSSID, wifiCredentials[0].savedPSK,0);
+	}
+
+	Serial.println("wifi saved");
+}
+
+
+void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],char PSK2[64]){
+	// reset wifi credentials from file
+	//Removing the Wifi Configuration
+	SPIFFS.remove(wifiFile);
+		//cria file system se não existir
+	spiffsMount();
+	Serial.println("Handle getWifiCredentials");
+	String page = "<http><body><b>getWifiCredentials</b></body></http>";
+
+
+	//get up to 3 wifi credentials
+	if(SSID1[0]!='\0' && PSK1[0]!='\0'){
+		Serial.println("Wifi 1");
+		strncpy(wifiCredentials[0].savedSSID,SSID1,32);
+		strncpy(wifiCredentials[0].savedPSK,PSK1,64);
+
+		numWifiCredentials++;
+		gotCredentials=1;
+
+		saveWifiConnectionInFile(wifiFile, wifiCredentials[0].savedSSID, wifiCredentials[0].savedPSK,0);
+	}
+	Serial.println("..");
+	if(SSID2[0]!='\0' && PSK2[0]!='\0'){
+		Serial.println("Wifi 2");
+		strncpy(wifiCredentials[1].savedSSID,SSID2,32);
+		strncpy(wifiCredentials[1].savedPSK,PSK2,64);
+
+		numWifiCredentials++;
+		gotCredentials=1;
+
+		saveWifiConnectionInFile(wifiFile, wifiCredentials[1].savedSSID, wifiCredentials[1].savedPSK,1);
+	}
+
+	Serial.println("wifi saved");
+}
+
+
+
+void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],char PSK2[64], char SSID3[32],char PSK3[64]){
+	// reset wifi credentials from file
+	//Removing the Wifi Configuration
+	SPIFFS.remove(wifiFile);
+		//cria file system se não existir
+	spiffsMount();
+	Serial.println("Handle getWifiCredentials");
+	String page = "<http><body><b>getWifiCredentials</b></body></http>";
+
+
+	//get up to 3 wifi credentials
+	if(SSID1[0]!='\0' && PSK1[0]!='\0'){
+		Serial.println("Wifi 1");
+		strncpy(wifiCredentials[0].savedSSID,SSID1,32);
+		strncpy(wifiCredentials[0].savedPSK,PSK1,64);
+
+		numWifiCredentials++;
+		gotCredentials=1;
+
+		saveWifiConnectionInFile(wifiFile, wifiCredentials[0].savedSSID, wifiCredentials[0].savedPSK,0);
+	}
+	Serial.println("..");
+	if(SSID2[0]!='\0' && PSK2[0]!='\0'){
+		Serial.println("Wifi 2");
+		strncpy(wifiCredentials[1].savedSSID,SSID2,32);
+		strncpy(wifiCredentials[1].savedPSK,PSK2,64);
+
+		numWifiCredentials++;
+		gotCredentials=1;
+
+		saveWifiConnectionInFile(wifiFile, wifiCredentials[1].savedSSID, wifiCredentials[1].savedPSK,1);
+	}
+	Serial.println("..");
+	if(SSID3[0]!='\0' && PSK3[0]!='\0'){
+		Serial.println("Wifi 3");
+		strncpy(wifiCredentials[2].savedSSID,SSID3,32);
+		strncpy(wifiCredentials[2].savedPSK,PSK3,64);
+
+		numWifiCredentials++;
+		gotCredentials=1;
+
+		saveWifiConnectionInFile(wifiFile, wifiCredentials[2].savedSSID, wifiCredentials[2].savedPSK,2);
+	}
+
+
+	Serial.println("wifi saved");
+}
+
+
+
+
+
+
+
 
 
 
@@ -715,6 +832,56 @@ bool startAPForWifiCredentials(char *apName, int timoutMilis){
 	#endif
 
 	return 1;
+}
+
+
+bool set_platform_credentials(char *server, char *port, char *user, char *password, char *prefix){
+  //Creating the variables we will use: "response" to keep the Server response and "address" to keep the address used to access the server
+
+	Serial.println("Get platform credentials...");
+	//	"{\"srv\":\"mqtt.demo.konkerlabs.net\",\"prt\":\"1883\",\"usr\":\"vmqb4o2j59d3\",\"pwd\":\"y5E9FOhuwsr5\", \"prx\":\"data\"}"
+	char configuration[1024]={'\0'};
+	strcat(configuration,"{\"srv\":\"");
+	strcat(configuration,server);
+	strcat(configuration,"\", \"prt\":\"");
+	strcat(configuration,port);
+	strcat(configuration,"\", \"usr\":\"");
+	strcat(configuration,user);
+	strcat(configuration,"\", \"pwd\":\"");
+	strcat(configuration,password);
+	strcat(configuration,"\", \"prx\":\"");
+	strcat(configuration,prefix);
+	strcat(configuration,"\"}\0");
+	
+	Serial.println("configuration=" + String(configuration));
+		//cria file system se não existir
+	spiffsMount();
+    File configFile = SPIFFS.open("/crd.json", "w");
+    if (!configFile) {
+      if (DEBUG) Serial.println("Could not open the file with write permition!");
+      return 0;
+    }
+	Serial.println("Saving config file /crd.json");
+
+
+
+
+
+
+
+    configFile.print(configuration);
+    configFile.close();
+
+    //Removing the Wifi Configuration
+    SPIFFS.remove(wifiFile);
+    //save hinitial ealth state flags
+    saveFile(healthFile,(char*)"000");
+
+    //wifiManager.resetSettings();
+
+
+    return 1;
+
 }
 
 

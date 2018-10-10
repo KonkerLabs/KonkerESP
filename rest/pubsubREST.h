@@ -183,11 +183,11 @@ bool subHttp(char const channel[],CHANNEL_CALLBACK_SIGNATURE){
   subCode=interpretHTTPCode(httpCode);
   
   if (!subCode){
-    Serial.println("failed");
+    Serial.println("failed SUB request");
     Serial.println("");
     failedComm=1;
   }else{
-    Serial.println("sucess");
+    Serial.println("sucess SUB request");
     Serial.println("");
 
     String strPayload = http.getString();
