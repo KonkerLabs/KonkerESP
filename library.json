@@ -1,6 +1,6 @@
 {
 	"name": "KonkerESP",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"keywords": "Konker, espressif8266, espressif32, MQTT, rest, iot",
 	"description": "espressif8266 and espressif32 Library for Konker enabled products",
 	"repository": {
