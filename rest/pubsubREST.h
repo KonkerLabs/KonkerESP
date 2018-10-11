@@ -109,7 +109,8 @@ bool testHTTPSubscribeConn(){
 }
 
 
-bool pubHttp(char const channel[], char const msg[], int &http_ret_code){
+
+bool pubHttp(char const channel[], char const msg[]){
   //throtle this call 
   if ((millis()-_last_time_http_request) < _millis_delay_per_http_request){
       delay((millis()-_last_time_http_request));
@@ -131,7 +132,6 @@ bool pubHttp(char const channel[], char const msg[], int &http_ret_code){
   http.begin((String)buffer);
 
   int httpCode=http.POST(String(msg));
-  http_ret_code = httpCode;
   //Serial.println("Publishing to " + String(topic) + "; Body: " + String(msg) + "; httpcode: " + String(httpCode));
   //Serial.print(">");
   http.end();   //Close connection
@@ -152,10 +152,6 @@ bool pubHttp(char const channel[], char const msg[], int &http_ret_code){
 
 }
 
-bool pubHttp(char const channel[], char const msg[]){
-  int http_ret_code;
-  return pubHttp(channel, msg, http_ret_code);
-}
 
 
 bool subHttp(char const channel[],CHANNEL_CALLBACK_SIGNATURE){
