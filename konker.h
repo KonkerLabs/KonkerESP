@@ -710,7 +710,7 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 		saveWifiConnectionInFile(wifiFile, wifiCredentials[0].savedSSID, wifiCredentials[0].savedPSK,0);
 	}
 	Serial.println("..");
-	if(SSID2[0]!='\0' && PSK2[0]!='\0'){
+	if(SSID2[0]!='\0'){
 		Serial.println("Wifi 2");
 		strncpy(wifiCredentials[1].savedSSID,SSID2,32);
 		strncpy(wifiCredentials[1].savedPSK,PSK2,64);
@@ -748,7 +748,7 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 		saveWifiConnectionInFile(wifiFile, wifiCredentials[0].savedSSID, wifiCredentials[0].savedPSK,0);
 	}
 	Serial.println("..");
-	if(SSID2[0]!='\0' && PSK2[0]!='\0'){
+	if(SSID2[0]!='\0'){
 		Serial.println("Wifi 2");
 		strncpy(wifiCredentials[1].savedSSID,SSID2,32);
 		strncpy(wifiCredentials[1].savedPSK,PSK2,64);
@@ -759,7 +759,7 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 		saveWifiConnectionInFile(wifiFile, wifiCredentials[1].savedSSID, wifiCredentials[1].savedPSK,1);
 	}
 	Serial.println("..");
-	if(SSID3[0]!='\0' && PSK3[0]!='\0'){
+	if(SSID3[0]!='\0'){
 		Serial.println("Wifi 3");
 		strncpy(wifiCredentials[2].savedSSID,SSID3,32);
 		strncpy(wifiCredentials[2].savedPSK,PSK3,64);
