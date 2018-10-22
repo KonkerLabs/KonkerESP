@@ -110,7 +110,7 @@ bool testHTTPSubscribeConn(){
 
 
 
-bool pubHttp(char const channel[], char const msg[]){
+bool pubHttp(char const channel[], char const msg[], int& ret_code){
   //throtle this call 
   if ((millis()-_last_time_http_request) < _millis_delay_per_http_request){
       delay((millis()-_last_time_http_request));
@@ -136,6 +136,8 @@ bool pubHttp(char const channel[], char const msg[]){
   //Serial.print(">");
   http.end();   //Close connection
 
+  ret_code = httpCode;
+
   pubCode=interpretHTTPCode(httpCode);
 
 
@@ -149,6 +151,12 @@ bool pubHttp(char const channel[], char const msg[]){
     Serial.println("");
     return 1;
   }
+
+}
+
+bool pubHttp(char const channel[], char const msg[]){
+  int ret_code;
+  return pubHttp(channel, msg, ret_code);
 
 }
 
