@@ -872,7 +872,7 @@ void setWifiCredentialsNotEncripted(
 		saveWifiConnectionInFile(wifiFile, wifiCredentials[1].savedSSID, wifiCredentials[1].savedPSK,1);
 	}
 	Serial.print("..#3 = ");
-	Serial.println(SSID3)
+	Serial.println(SSID3);
 	if(SSID3[0]!='\0') { //} && PSK3[0]!='\0'){
 		Serial.println("Wifi 3");
 		strncpy(wifiCredentials[2].savedSSID,SSID3,32);
