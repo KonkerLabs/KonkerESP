@@ -127,7 +127,7 @@ void resetALL(){
 		#ifndef ESP32
 		ESP.reset();
 		#else
-		ESP.restart();
+		ESP.restart();,
 		#endif
 		delay(1000);
 }
@@ -192,14 +192,29 @@ void tryConnect(char *ssid, char *pass){
 
 }
 
+String getConnectMessage(int status_code) {
+	switch(status_code) {
+		case 255: return "WL_NO_SHIELD"; break;
+		case 0: return "WL_IDLE_STATUS"; break; 
+		case 1: return "WL_NO_SSID_AVAIL"; break; 
+		case 2: return "WL_SCAN_COMPLETED"; break; 
+		case 3: return "WL_CONNECTED"; break; 
+		case 4: return "WL_CONNECT_FAILED"; break; 
+		case 5: return "WL_CONNECTION_LOST"; break;
+		case 6: return "WL_DISCONNECTED"; break;
+	}
+	return "UNDEFINED";
+}
+
 int connectionStatus(){
 	int wifiStartTime=millis();
 	while(WiFi.status() != WL_CONNECTED && (millis()-wifiStartTime)<__wifiTimout) {
 			delay(500);
+			Serial.print("."); 
 	}
 
 	int connRes = WiFi.status();
-	Serial.println("connRes=" + (String)connRes);
+	Serial.println("\nconnRes=" + (String)connRes + " " +  getConnectMessage(connRes));
 	return connRes;
 }
 
@@ -215,7 +230,7 @@ int connectWifi(char *ssid, char *pass) {
 
 int tryConnectWifi(char *ssid, char *pass, int retryies) {
 	int connRes=connectWifi(ssid,pass);
-	while (connRes!=3 && retryies>1){
+	while (connRes!=WL_CONNECTED && retryies>1){
 		delay(1000);
 		connRes=connectWifi(ssid,pass);
 		retryies=retryies-1;
@@ -239,12 +254,16 @@ bool saveWifiInFile(String wifiFile, char *ssid, char *psk){
 
 unsigned int saveWifiConnectionInFile(String wifiFile, char *ssid, char *psk, unsigned int arrayIndex){
 
-  String json="{\"s\":\"" + (String)ssid + "\",\"p\":\"" + (String)psk + "\"}";
+	String json="{\"s\":\"" + (String)ssid + "\",\"p\":\"" + (String)psk + "\"}";
+
 	Serial.print("saving json = ");
-	Serial.println(json);
-  char charJson[112];
-  json.toCharArray(charJson, 112);
-  return updateJsonArrayFile(wifiFile, charJson, arrayIndex);
+	Serial.print(json);
+	Serial.print(" @ pos = ");
+	Serial.println(arrayIndex);
+
+	char charJson[112];
+	json.toCharArray(charJson, 112);
+	return updateJsonArrayFile(wifiFile, charJson, arrayIndex);
 }
 
 bool getWifiFromFile(String wifiFile, char *ssid, char *psk){
@@ -300,16 +319,16 @@ bool tryConnectClientWifi(unsigned int wifiNum){
 	int connRes;
 	if(strcmp(fileSavedSSID,"")!=0){
 		if (fileSavedSSID[0]!='\0'){
-			Serial.println("Tring to connect to saved WiFi  (will try 2 times):" +  (String)fileSavedSSID);
+			Serial.println("Trying to connect to saved WiFi  (will try 2 times):" +  (String)fileSavedSSID);
 			connRes=tryConnectWifi(fileSavedSSID,fileSavedPSK,2);
 		}else{
-			Serial.println("Tring to connect to WiFi (will try 2 times):" +  (String)wifiCredentials[wifiNum].savedSSID);
+			Serial.println("Trying to connect to WiFi (will try 2 times):" +  (String)wifiCredentials[wifiNum].savedSSID);
 			connRes=tryConnectWifi(wifiCredentials[wifiNum].savedSSID,wifiCredentials[wifiNum].savedPSK,2);
 		}
 
 	}else{
 		if(wifiCredentials[wifiNum].savedSSID[0]!='\0'){
-			Serial.println("Tring to connect to WiFi (will try 2 times):" +  (String)wifiCredentials[wifiNum].savedSSID);
+			Serial.println("Trying to connect to WiFi (will try 2 times):" +  (String)wifiCredentials[wifiNum].savedSSID);
 			connRes=tryConnectWifi(wifiCredentials[wifiNum].savedSSID,wifiCredentials[wifiNum].savedPSK,2);
 		}else{
 			Serial.println("No WiFi saved, ignoring...");
@@ -352,13 +371,13 @@ bool connectToWiFiAndPubSubServers(){
 	#ifdef pubsubMQTT
 	if(!connectMQTT()){
 		Serial.println("Failed!");
-    appendToFile(healthFile,(char*)"1", _mqttFailureAdress);
+    	appendToFile(healthFile,(char*)"1", _mqttFailureAdress);
 		return 0;
 	}
 	#endif
 	if(!testHTTPSubscribeConn()){
 		Serial.println("Failed!");
-    appendToFile(healthFile,(char*)"1", _httpFailureAdress);
+	    appendToFile(healthFile,(char*)"1", _httpFailureAdress);
 		return 0;
 	}
 
@@ -761,7 +780,7 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64]){
 
 
 	//get up to 3 wifi credentials
-	if(SSID1[0]!='\0' && PSK1[0]!='\0'){
+	if(SSID1[0]!='\0') { //} && PSK1[0]!='\0'){
 		Serial.println("Wifi 1");
 		strncpy(wifiCredentials[0].savedSSID,SSID1,32);
 		strncpy(wifiCredentials[0].savedPSK,PSK1,64);
@@ -787,7 +806,7 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 
 
 	//get up to 3 wifi credentials
-	if(SSID1[0]!='\0' && PSK1[0]!='\0'){
+	if(SSID1[0]!='\0') { //} && PSK1[0]!='\0'){
 		Serial.println("Wifi 1");
 		strncpy(wifiCredentials[0].savedSSID,SSID1,32);
 		strncpy(wifiCredentials[0].savedPSK,PSK1,64);
@@ -798,7 +817,7 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 		saveWifiConnectionInFile(wifiFile, wifiCredentials[0].savedSSID, wifiCredentials[0].savedPSK,0);
 	}
 	Serial.println("..");
-	if(SSID2[0]!='\0' && PSK2[0]!='\0'){
+	if(SSID2[0]!='\0') { //} && PSK2[0]!='\0'){
 		Serial.println("Wifi 2");
 		strncpy(wifiCredentials[1].savedSSID,SSID2,32);
 		strncpy(wifiCredentials[1].savedPSK,PSK2,64);
@@ -814,7 +833,10 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 
 
 
-void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],char PSK2[64], char SSID3[32],char PSK3[64]){
+void setWifiCredentialsNotEncripted(
+	char SSID1[32],char PSK1[64],
+	char SSID2[32],char PSK2[64], 
+	char SSID3[32],char PSK3[64]){
 	// reset wifi credentials from file
 	//Removing the Wifi Configuration
 	SPIFFS.remove(wifiFile);
@@ -824,8 +846,10 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 	String page = "<http><body><b>getWifiCredentials</b></body></http>";
 
 
+	Serial.print(".. #1 = ");
+	Serial.println(SSID1);
 	//get up to 3 wifi credentials
-	if(SSID1[0]!='\0' && PSK1[0]!='\0'){
+	if(SSID1[0]!='\0') { // } && PSK1[0]!='\0'){
 		Serial.println("Wifi 1");
 		strncpy(wifiCredentials[0].savedSSID,SSID1,32);
 		strncpy(wifiCredentials[0].savedPSK,PSK1,64);
@@ -835,8 +859,9 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 
 		saveWifiConnectionInFile(wifiFile, wifiCredentials[0].savedSSID, wifiCredentials[0].savedPSK,0);
 	}
-	Serial.println("..");
-	if(SSID2[0]!='\0' && PSK2[0]!='\0'){
+	Serial.print(".. #2 = ");
+	Serial.println(SSID2);
+	if(SSID2[0]!='\0') { // } && PSK2[0]!='\0'){
 		Serial.println("Wifi 2");
 		strncpy(wifiCredentials[1].savedSSID,SSID2,32);
 		strncpy(wifiCredentials[1].savedPSK,PSK2,64);
@@ -846,8 +871,9 @@ void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],
 
 		saveWifiConnectionInFile(wifiFile, wifiCredentials[1].savedSSID, wifiCredentials[1].savedPSK,1);
 	}
-	Serial.println("..");
-	if(SSID3[0]!='\0' && PSK3[0]!='\0'){
+	Serial.print("..#3 = ");
+	Serial.println(SSID3)
+	if(SSID3[0]!='\0') { //} && PSK3[0]!='\0'){
 		Serial.println("Wifi 3");
 		strncpy(wifiCredentials[2].savedSSID,SSID3,32);
 		strncpy(wifiCredentials[2].savedPSK,PSK3,64);
@@ -1035,7 +1061,7 @@ void konkerConfig(char rootURL[64], char productPefix[6], bool encripted){
 	pinMode(resetPin, OUTPUT);
 	digitalWrite(resetPin, HIGH);
 
-  _encripted=encripted;
+    _encripted=encripted;
 
 	int i =String(_rootDomain).indexOf("http://");
 	if(i==0){
