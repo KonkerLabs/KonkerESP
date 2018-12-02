@@ -195,7 +195,7 @@ void tryConnect(char *ssid, char *pass){
 int connectionStatus(){
 	int wifiStartTime=millis();
 	while(WiFi.status() != WL_CONNECTED && (millis()-wifiStartTime)<__wifiTimout) {
-			delay(100);
+			delay(500);
 	}
 
 	int connRes = WiFi.status();
