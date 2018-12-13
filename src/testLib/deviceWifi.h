@@ -471,7 +471,7 @@ void DeviceWifi::setupWiFiAp(char *apName){
 	uint8_t mac[6];
 	WiFi.softAPmacAddress(mac);
 
-	//TO-DO
+	//<TO-DO>
 	//#ifndef ESP32
 	//WiFi.onEvent(_wiFiEvent,WIFI_EVENT_ANY);
 	//#else
@@ -776,9 +776,9 @@ bool DeviceWifi::startApForWifiCredentials(char *apName, int timoutMilis){
 
 
   if (_encripted==true){
-    	_webServer->on("/wifisave", this->getWifiCredentialsEncripted);
+    	//_webServer->on("/wifisave", this->getWifiCredentialsEncripted);
   }else{
-    	_webServer->on("/wifisave", this->getWifiCredentialsNotEncripted);
+    	//_webServer->on("/wifisave", this->getWifiCredentialsNotEncripted);
   }
 
 	_webServer->begin();

@@ -1,8 +1,3 @@
-/*
-  Morse.h - Library for flashing Morse code.
-  Created by David A. Mellis, November 2, 2007.
-  Released into the public domain.
-*/
 #ifndef KonkerSettings_h
 #define KonkerSettings_h
 
@@ -14,7 +9,7 @@ class KonkerSettings{
     KonkerSettings(String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat);
     KonkerSettings(String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat,
                  String mqttAdress, String mqttPubTopicFormat, String mqttSubTopicFormat);
-
+    
     String getHttpDomain();
     bool setHttpDomain(String httpDomain);
 
@@ -23,9 +18,9 @@ class KonkerSettings{
     int getHttpPort();
     bool setHttpPort(int httpPort);
 
-    String getHttpPubTopicFormat();
+    String getHttpPubTopic(String deviceUser, String channel);
     bool setHttpPubTopicFormat(String httpPubTopicFormat);
-    String getHttpSubTopicFormat();
+    String getHttpSubTopic(String deviceUser, String channel);
     bool setHttpSubTopicFormat(String httpSubTopicFormat);
 
     String getMqttAdress();
@@ -36,27 +31,27 @@ class KonkerSettings{
 
     String getMqttRootDomain();
 
-    String getMqttPubTopicFormat();
+    String getMqttPubTopic(String deviceUser, String channel);
     bool setMqttPubTopicFormat(String mqttPubTopicFormat);
-    String getMqttSubTopicFormat();
+    String getMqttSubTopic(String deviceUser, String channel);
     bool setMqttSubTopicFormat(String mqttSubTopicFormat);
 
+    const String deviceKeyword = "<device>";
+    const String channelKeyword = "<channel>";
 
   private:
-    String _deviceKeyword = "<device>";
-    String _channelKeyword = "<channel>";
 
     String _httpDomain = "";//"http://data.demo.konkerlabs.net:80";
     String _rootHttpDomain="";//"data.demo.konkerlabs.net";
     int _httpPort=80;
-    String _httpPubTopicFormat = "";//"/pub/" + _deviceKeyword + "/" + _channelKeyword;
-    String _httpSubTopicFormat = "";//"/sub/" + _deviceKeyword + "/" + _channelKeyword;
+    String _httpPubTopicFormat = "";//"/pub/" + deviceKeyword + "/" + channelKeyword;
+    String _httpSubTopicFormat = "";//"/sub/" + deviceKeyword + "/" + channelKeyword;
 
     String _mqttAdress = "";//"mqtt://mqtt.demo.konkerlabs.net:1883";
     String _rootMqttDomain ="";//"mqtt.demo.konkerlabs.net";
     int _mqttPort=1883;
-    String _mqttPubTopicFormat = "";//"data/" + _deviceKeyword + "/pub/" + _channelKeyword;
-    String _mqttSubTopicFormat = "";//"data/" + _deviceKeyword + "/sub/" + _channelKeyword;
+    String _mqttPubTopicFormat = "";//"data/" + deviceKeyword + "/pub/" + channelKeyword;
+    String _mqttSubTopicFormat = "";//"data/" + deviceKeyword + "/sub/" + channelKeyword;
 
     bool validateTopicFormat(String topicFormat, String &topicAdjusted);
 };
@@ -86,13 +81,13 @@ bool KonkerSettings::validateTopicFormat(String topicFormat, String &topicAdjust
       topicAdjusted="/" + topicFormat;
     }
 
-    int i = topicFormat.indexOf(_deviceKeyword);
-    if(i==-1){//not found _deviceKeyword
+    int i = topicFormat.indexOf(deviceKeyword);
+    if(i==-1){//not found deviceKeyword
       return 0;
     }
 
-    i = topicFormat.indexOf(_channelKeyword);
-    if(i==-1){//not found _channelKeyword
+    i = topicFormat.indexOf(channelKeyword);
+    if(i==-1){//not found channelKeyword
       return 0;
     }
    return 1;
@@ -122,7 +117,7 @@ bool KonkerSettings::setHttpDomain(String httpDomain){
       domainStart=7;
     }
     i =httpDomain.indexOf(":",i+1);//check if port is set
-    if(i==-1){
+    if(i==-1){//no port set, set default values
       i =httpDomain.indexOf("https");
       if(i==0){
         setHttpPort(443);
@@ -143,10 +138,15 @@ String KonkerSettings::getHttpRootDomain(){
    return _rootHttpDomain;
 }
 
-String KonkerSettings::getHttpPubTopicFormat(){
-   return _httpPubTopicFormat;
+String KonkerSettings::getHttpPubTopic(String deviceUser, String channel){
+  String pubTopic = _httpPubTopicFormat;
+  pubTopic.replace(deviceKeyword,deviceUser);
+  pubTopic.replace(channelKeyword,channel);
+  return pubTopic;
 }
 
+//For format use theese keywords <device> and <channel>, they will be automaticaly replaced at PUB or SUB functions
+//Example: konker.setHttpPubTopicFormat("/pub/<device>/<channel>");
 bool KonkerSettings::setHttpPubTopicFormat(String httpPubTopicFormat){
   return validateTopicFormat(httpPubTopicFormat,_httpPubTopicFormat);
 }
@@ -160,10 +160,17 @@ bool KonkerSettings::setHttpPort(int httpPort){
    return 1;
 }
 
-String KonkerSettings::getHttpSubTopicFormat(){
-   return _httpSubTopicFormat;
+//For format use theese keywords <device> and <channel>, they will be automaticaly replaced at PUB or SUB functions
+//Example: konker.setHttpSubTopicFormat("/pub/<device>/<channel>");
+String KonkerSettings::getHttpSubTopic(String deviceUser, String channel){
+  String subTopic = _httpSubTopicFormat;
+  subTopic.replace(deviceKeyword,deviceUser);
+  subTopic.replace(channelKeyword,channel);
+  return subTopic;
 }
 
+//For format use theese keywords <device> and <channel>, they will be automaticaly replaced at PUB or SUB functions
+//Example: konker.setHttpPubTopicFormat("/sub/<device>/<channel>");
 bool KonkerSettings::setHttpSubTopicFormat(String httpSubTopicFormat){
   return validateTopicFormat(httpSubTopicFormat,_httpSubTopicFormat);
 }
@@ -192,7 +199,7 @@ bool KonkerSettings::setMqttAdress(String mqttAdress){
       domainStart=7;
     }
     i =mqttAdress.indexOf(":",i+1);//check if port is set
-    if(i==-1){
+    if(i==-1){//no port set, set default values
       i =mqttAdress.indexOf("mqtts");
       if(i==0){
         setMqttPort(8883);
@@ -221,18 +228,28 @@ bool KonkerSettings::setMqttPort(int mqttPort){
    return 1;
 }
 
-String KonkerSettings::getMqttPubTopicFormat(){
-   return _mqttPubTopicFormat;
+String KonkerSettings::getMqttPubTopic(String deviceUser, String channel){
+  String pubTopic = _mqttPubTopicFormat;
+  pubTopic.replace(deviceKeyword,deviceUser);
+  pubTopic.replace(channelKeyword,channel);
+  return pubTopic;
 }
 
+//For format use theese keywords <device> and <channel>, they will be automaticaly replaced at PUB or SUB functions
+//Example: konker.setMqttPubTopicFormat("data/<device>/pub/<channel>");
 bool KonkerSettings::setMqttPubTopicFormat(String mqttPubTopicFormat){
   return validateTopicFormat(mqttPubTopicFormat,_mqttPubTopicFormat);
 }
 
-String KonkerSettings::getMqttSubTopicFormat(){
-   return _mqttSubTopicFormat;
+String KonkerSettings::getMqttSubTopic(String deviceUser, String channel){
+  String subTopic = _mqttSubTopicFormat;
+  subTopic.replace(deviceKeyword,deviceUser);
+  subTopic.replace(channelKeyword,channel);
+  return subTopic;
 }
 
+//For format use theese keywords <device> and <channel>, they will be automaticaly replaced at PUB or SUB functions
+//Example: konker.setMqttSubTopicFormat("data/<device>/pub/<channel>");
 bool KonkerSettings::setMqttSubTopicFormat(String mqttSubTopicFormat){
   return validateTopicFormat(mqttSubTopicFormat,_mqttSubTopicFormat);
 }

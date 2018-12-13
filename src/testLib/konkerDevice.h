@@ -1,4 +1,3 @@
-
 #include "Arduino.h"
 #ifndef _KonkerDevice
 #define _KonkerDevice
@@ -6,6 +5,14 @@
 #include "konkerSettings.h"
 #include "deviceWifi.h"
 #include "./helpers/subChanTuple.h"
+#ifndef ESP32
+#include <ESP8266HTTPClient.h>
+#else
+#include <HTTPClient.h>
+#endif
+
+//mqtt
+#include <PubSubClient.h>
 
 class KonkerDevice{
   private:
@@ -13,15 +20,42 @@ class KonkerDevice{
 	char _chipId[32];
 	char _base_name[6];
 	void _setDefaults();
-    String _healthFile="/health.json";
+    char _healthFile[13];//="/health.json";
+	char _configFile[13];//="/config.json";
+	char _wifiFile[1];//="/wifi.json";
     int _netFailureAdress=0;
     int _mqttFailureAdress=1;
     int _httpFailureAdress=2;
+	char _device_login[32];
+	char _device_pass[32];
+	#ifdef DEBUG
+	bool _debug=1;
+	#else
+	bool _debug=0;
+	#endif
+	unsigned long _last_time_http_request=0;
+	unsigned long _millis_delay_per_http_request=1000;
+	bool _interpretHTTPCode(int httpCode);
 
+	//mqtt
+	#ifdef konkerMQTTs
+	WiFiClientSecure _espClient;
+	const char* _fingerprint = "";
+	bool _checkSecureFingerprint(const char* fingerprint, const char* secureServer);
+	bool _checkSecureFingerprint(const char* fingerprint);
+	#else
+	WiFiClient _espClient;
+	#endif
+	PubSubClient _client;
+
+	
+	void _callback(char* topic, byte* payload, unsigned int length);
+
+	SubChanTuple _subChanTuple;
+	bool _connectMQTT(char r_server[], int r_port, char r_device_login[], char r_device_pass[]);
+	bool _connectMQTT();
   public:
-    KonkerDevice(int pin);
-    void dot();
-    void dash();
+
 	KonkerSettings konker;
 	DeviceWifi deviceWifi;
 
@@ -32,12 +66,15 @@ class KonkerDevice{
 	#endif
 	int statusLedPin=2;
 	char name[32];
+	KonkerDevice(String newName);
+	KonkerDevice(String newName, bool isEncripted);
+    KonkerDevice(String newName, String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat,
+                 String mqttAdress, String mqttPubTopicFormat, String mqttSubTopicFormat, bool isEncripted);
 
-    KonkerDevice(String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat, bool encripted);
-    KonkerDevice(String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat,
-                 String mqttAdress, String mqttPubTopicFormat, String mqttSubTopicFormat, bool encripted);
+	void setup();
+	void mqttLoop();
 
-	void setup(char newName[6]);
+	char *getChipId();
 
 	void clearDeviceConfig();	
 
@@ -49,32 +86,163 @@ class KonkerDevice{
     bool pubHttp(char const channel[], char const msg[]);
     bool subHttp(char const channel[],CHANNEL_CALLBACK_SIGNATURE);
     bool testHTTPSubscribeConn();
+	bool pubMQTT(char const channel[], char const msg[]);
+	bool subMQTT(char const channel[],CHANNEL_CALLBACK_SIGNATURE);
     bool checkForFactoryWifi(char *ssidConfig, char *ssidPassConfig, int powerLimit, int connectTimeout);
-    bool getPlataformCredentials(char *configFilePath);
+    bool setPlataformCredentials(char *configFilePath);
     bool getPlataformCredentialsFromGateway();
+	bool setPlataformCredentials(char *mqtt, char *http, char *user, char *password);
+
 };
 
+//private
+bool KonkerDevice::_interpretHTTPCode(int httpCode){
+  
+  if (httpCode > 0 && httpCode<300) { //Check the returning code
+    return 1;
 
+  }else{
+    Serial.println(String(httpCode));
+    return 0;
+  }
+}
 
-KonkerDevice::KonkerDevice(String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat, bool encripted){
+void KonkerDevice::_setDefaults(){
 	strncpy(_base_name,"S0000",6);
-	konker.setHttpDomain(httpDomain) && konker.setHttpPubTopicFormat(httpPubTopicFormat) && konker.setHttpSubTopicFormat(httpSubTopicFormat);
-	deviceWifi=DeviceWifi();
-	_encripted=encripted;
+	strncpy(_healthFile,"/health.json",13);
+	strncpy(_configFile,"/config.json",13);
+	strncpy(_wifiFile,"/wifi.json",13);
+	//mqtt
+	_client=PubSubClient(_espClient);
+}
+
+
+#ifdef konkerMQTTs
+bool KonkerDevice::_checkSecureFingerprint(const char* fingerprint, const char* secureServer){
+  if (espClient.verify(fingerprint, secureServer)) {
+    Serial.println("Connection secure.");
+		return 1;
+  } else {
+    Serial.println("Connection insecure! Halting execution.");
+   	return 0;
+  }
+}
+
+bool KonkerDevice::_checkSecureFingerprint(const char* fingerprint){
+  if (espClient.verify(fingerprint, server)) {
+    Serial.println("Connection secure.");
+		return 1;
+  } else {
+    Serial.println("Connection insecure! Halting execution.");
+   	return 0;
+  }
+}
+#endif
+
+
+void KonkerDevice::_callback(char* topic, byte* payload, unsigned int length){
+
+  Serial.print("Message received [");
+  Serial.print(topic);
+  Serial.print("] ");
+
+  _subChanTuple.callSubChannelCallback(topic, payload, length);
+
+}
+
+
+bool KonkerDevice::_connectMQTT(char r_server[], int r_port, char r_device_login[], char r_device_pass[]){
+    if(_client.connected()){
+      Serial.print("Already connected to MQTT broker ");
+      //return 1;
+    }else{
+      Serial.print("Trying to connect to MQTT broker ");
+    }
+    
+
+
+	Serial.print(" URI:" + String(r_server) + " Port:" + String(r_port) + ", ");
+
+	_client.setServer(r_server, r_port);
+
+	//<TO-DO>
+	//_client.setCallback(_callback);
+
+	Serial.print(" U:" + String(r_device_login) + " P:" + String(r_device_pass));
+
+	int connectCode=_client.connect(r_device_login, r_device_login, r_device_pass);
+
+	Serial.println(", connectCode=" + String(connectCode));
+
+
+    if (connectCode==1) { //Check the returning code
+      Serial.println("sucess");
+      Serial.println("");
+      return 1;
+    }else{
+      Serial.println("failed");
+      Serial.println("");
+      appendToFile(_healthFile,(char*)"1", _mqttFailureAdress);
+      delay(3000);
+      #ifndef ESP32
+      ESP.reset();
+      #else
+      ESP.restart();
+      #endif
+      return 0;
+		}
+}
+
+bool KonkerDevice::_connectMQTT(){
+	char *server;
+	konker.getMqttRootDomain().toCharArray(server, konker.getMqttRootDomain().length()+1);
+	return _connectMQTT(server,konker.getMqttPort(),_device_login,_device_pass);
+}
+
+
+
+//public
+
+void KonkerDevice::mqttLoop(){
+  _client.loop();
+}
+
+
+KonkerDevice::KonkerDevice(String newName){
+	_encripted=0;
+	char chrNewName[6];
+	newName.toCharArray(chrNewName,6);
+	strncpy(_base_name, chrNewName,6);
 	_setDefaults();
-	
+}
+
+KonkerDevice::KonkerDevice(String newName, bool isEncripted){
+	char chrNewName[6];
+	newName.toCharArray(chrNewName,6);
+	strncpy(_base_name, chrNewName,6);
+	_encripted=isEncripted;
+	_setDefaults();
 }
 
 
-KonkerDevice::KonkerDevice(String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat,
-                 String mqttAdress, String mqttPubTopicFormat, String mqttSubTopicFormat, bool encripted){
-  strncpy(_base_name,"S0000",6);
-  konker.setHttpDomain(httpDomain) && konker.setHttpPubTopicFormat(httpPubTopicFormat) && konker.setHttpSubTopicFormat(httpSubTopicFormat);
-  konker.setMqttAdress(httpDomain) && konker.setMqttPubTopicFormat(httpPubTopicFormat) && konker.setMqttSubTopicFormat(httpSubTopicFormat);
+KonkerDevice::KonkerDevice(String newName, String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat,
+                 String mqttAdress, String mqttPubTopicFormat, String mqttSubTopicFormat, bool isEncripted){
 
-  _encripted=encripted;
-  _setDefaults();
+	konker.setHttpDomain(httpDomain) && konker.setHttpPubTopicFormat(httpPubTopicFormat) && konker.setHttpSubTopicFormat(httpSubTopicFormat);
+	konker.setMqttAdress(httpDomain) && konker.setMqttPubTopicFormat(httpPubTopicFormat) && konker.setMqttSubTopicFormat(httpSubTopicFormat);
+	char chrNewName[6];
+	newName.toCharArray(chrNewName,6);
+	strncpy(_base_name, chrNewName,6);
+	_encripted=isEncripted;
+	_setDefaults();
 }
+
+
+char *KonkerDevice::getChipId(){
+  return  _chipId;
+}
+
+
 
 void KonkerDevice::clearDeviceConfig(){
 	WiFi.begin("", "");
@@ -181,8 +349,27 @@ bool KonkerDevice::checkForFactoryWifi(char *ssidConfig, char *ssidPassConfig, i
 	return 0;
 }
 
-//Expected format->   {"srv":"mqtt.demo.konkerlabs.net","prt":"1883","usr":"jnu55qtsbbii","pwd":"3S7rnsR9gDqK", ,"prx":"data"}
-bool KonkerDevice::getPlataformCredentials(char *configFilePath){
+//Expected format->   {"mqtt":"mqtt://mqtt.demo.konkerlabs.net:1883", "http":"http://data.demo.konkerlabs.net:80", "usr":"jsu55qtsbbii","pwd":"3S7onsR9gDqK"}
+bool KonkerDevice::setPlataformCredentials(char *configFilePath){
+	//Set the parameters for konker object 
+	//Example:
+	//konker.setHttpDomain("http://data.demo.konkerlabs.net:80");
+
+	//For format use theese keywords <device> and <channel>, they will be automaticaly replaced at PUB or SUB functions
+	//konker.setHttpPubTopicFormat("/pub/<device>/<channel>");
+	//konker.setHttpSubTopicFormat("/sub/<device>/<channel>");
+
+	//konker.setMqttAdress("mqtt://mqtt.demo.konkerlabs.net:1883")
+	//konker.setMqttPubTopicFormat("data/<device>/pub/<channel>");
+	//konker.setMqttSubTopicFormat("data/<device>/sub/<channel>")
+
+
+	String _mqttJsonKeyword="mqtt";
+	String _httpJsonKeyword="http";
+	String _usrJsonKeyword="usr";
+	String _pwdJsonKeyword="pwd";
+
+
 	//////////////////////////
 	///step1 open file
 	char fileContens[1024];
@@ -210,28 +397,21 @@ bool KonkerDevice::getPlataformCredentials(char *configFilePath){
 	char bufferConfigJson[1024]="";
 	configJson.printTo(bufferConfigJson, 1024);
 	Serial.println("Content: "+ String(bufferConfigJson));
-	if (configJson.containsKey("srv") && configJson.containsKey("prt") &&
-	configJson.containsKey("usr") && configJson.containsKey("pwd") && configJson.containsKey("prx")){
+	if (configJson.containsKey(_mqttJsonKeyword) && configJson.containsKey(_httpJsonKeyword) &&
+	configJson.containsKey(_usrJsonKeyword) && configJson.containsKey(_pwdJsonKeyword)){
 
+		//For format use theese keywords <device> and <channel>, they will be automaticaly replaced at PUB or SUB functions
+		konker.setHttpDomain(configJson[_httpJsonKeyword]);
+		konker.setHttpPubTopicFormat("/pub/<device>/<channel>");
+		konker.setHttpSubTopicFormat("/sub/<device>/<channel>");
 
-		//global variables: server, port, device_login, device_pass
-		//variables delcared in main.h from LibKonkerESP8266
-		//char server[64];
-		//int port;
-		//char device_login[32];
-		//char device_pass[32];
-		//char prefix[32];
-		strcpy(server, configJson["srv"]);
-        konker.setHttpDomain("??");
+		konker.setMqttAdress(configJson[_mqttJsonKeyword]);
+		konker.setMqttPubTopicFormat("data/<device>/pub/<channel>");
+		konker.setMqttSubTopicFormat("data/<device>/sub/<channel>");
 
-		port=atoi(configJson["prt"]);
-        konker.setHttpPort(port);
+		strcpy(_device_login, configJson[_usrJsonKeyword]);
+		strcpy(_device_pass, configJson[_pwdJsonKeyword]);
 
-		strcpy(device_login, configJson["usr"]);
-        konker.
-
-		strcpy(device_pass, configJson["pwd"]);
-		strcpy(prefix, configJson["prx"]);
 	}else{
 		Serial.println("Unexpected json format");
 		return 0;
@@ -239,132 +419,140 @@ bool KonkerDevice::getPlataformCredentials(char *configFilePath){
 
 	//////////////////////////
 	///step4 check for empty values
-	if(strcmp(server, "") == 0){
-		Serial.println("Unexpected json format, srv is empty");
+	if(strcmp(configJson[_httpJsonKeyword], "") == 0){
+		Serial.println("Unexpected json format, " + _httpJsonKeyword + " is empty");
 		return 0;
 	}
-	if(port== 0){
-		Serial.println("Unexpected json format, port is empty");
+	if(configJson[_mqttJsonKeyword]== 0){
+		Serial.println("Unexpected json format, " + _mqttJsonKeyword + " is empty");
 		return 0;
 	}
-	if(strcmp(device_login, "") == 0){
-		Serial.println("Unexpected json format, usr is empty");
+	if(strcmp(configJson[_usrJsonKeyword], "") == 0){
+		Serial.println("Unexpected json format, " + _usrJsonKeyword + " is empty");
 		return 0;
 	}
-	if(strcmp(device_pass, "") == 0){
-		Serial.println("Unexpected json format, pwd is empty");
+	if(strcmp(configJson[_pwdJsonKeyword], "") == 0){
+		Serial.println("Unexpected json format, " + _pwdJsonKeyword + " is empty");
 		return 0;
 	}
-	if(strcmp(prefix, "") == 0){
-		Serial.println("Unexpected json format, prx is empty");
-		return 0;
-	}
+
+
+	//For format use theese keywords <device> and <channel>, they will be automaticaly replaced at PUB or SUB functions
+	konker.setHttpDomain(configJson[_httpJsonKeyword]);
+	konker.setHttpPubTopicFormat("/pub/<device>/<channel>");
+	konker.setHttpSubTopicFormat("/sub/<device>/<channel>");
+
+	konker.setMqttAdress(configJson[_mqttJsonKeyword]);
+	konker.setMqttPubTopicFormat("data/<device>/pub/<channel>");
+	konker.setMqttSubTopicFormat("data/<device>/sub/<channel>");
+
+	strcpy(_device_login, configJson[_usrJsonKeyword]);
+	strcpy(_device_pass, configJson[_pwdJsonKeyword]);
+
 
 	//if reached this part then return 1 meaning it is OK
 	return 1;
 }
 
-bool KonkerDevice::setPlatformCredentials(char *server, char *port, char *user, char *password, char *prefix){
-  //Creating the variables we will use: "response" to keep the Server response and "address" to keep the address used to access the server
+bool KonkerDevice::setPlataformCredentials(char *mqtt, char *http, char *user, char *password){
+	Serial.println("Set platform credentials...");
+	//	"{\"mqtt\":\"mqtt://mqtt.demo.konkerlabs.net:1883\",\"http\":\"http://data.demo.konkerlabs.net:80\",\"usr\":\"vmqb4o2j59d3\",\"pwd\":\"y5E9FOhuwsr5\""}"
 
-	Serial.println("Get platform credentials...");
-	//	"{\"srv\":\"mqtt.demo.konkerlabs.net\",\"prt\":\"1883\",\"usr\":\"vmqb4o2j59d3\",\"pwd\":\"y5E9FOhuwsr5\", \"prx\":\"data\"}"
 	char configuration[1024]={'\0'};
-	strcat(configuration,"{\"srv\":\"");
-	strcat(configuration,server);
-	strcat(configuration,"\", \"prt\":\"");
-	strcat(configuration,port);
+	strcat(configuration,"{\"mqtt\":\"");
+	strcat(configuration,mqtt);
+	strcat(configuration,"\", \"http\":\"");
+	strcat(configuration,http);
 	strcat(configuration,"\", \"usr\":\"");
 	strcat(configuration,user);
 	strcat(configuration,"\", \"pwd\":\"");
 	strcat(configuration,password);
-	strcat(configuration,"\", \"prx\":\"");
-	strcat(configuration,prefix);
 	strcat(configuration,"\"}\0");
-	
+
 	Serial.println("configuration=" + String(configuration));
 		//cria file system se não existir
 	spiffsMount();
-    File configFile = SPIFFS.open("/crd.json", "w");
-    if (!configFile) {
-      if (DEBUG) Serial.println("Could not open the file with write permition!");
-      return 0;
-    }
-	Serial.println("Saving config file /crd.json");
+	File configFile = SPIFFS.open(_configFile, "w");
+	if (!configFile) {
+		if (_debug) Serial.println("Could not open the file with write permition!");
+		return 0;
+	}
+	Serial.println("Saving config file " + (String)_configFile);
 
 
 
 
+	configFile.print(configuration);
+	configFile.close();
+
+	//Removing the Wifi Configuration
+	SPIFFS.remove(_wifiFile);
+	//save hinitial ealth state flags
+	saveFile(_healthFile,(char*)"000");
+
+	//wifiManager.resetSettings();
 
 
-
-    configFile.print(configuration);
-    configFile.close();
-
-    //Removing the Wifi Configuration
-    SPIFFS.remove(wifiFile);
-    //save hinitial ealth state flags
-    saveFile(_healthFile,(char*)"000");
-
-    //wifiManager.resetSettings();
-
-
-    return 1;
+	return 1;
 
 }
 
 bool  KonkerDevice::getPlataformCredentialsFromGateway(){
-  //Creating the variables we will use: "response" to keep the Server response and "address" to keep the address used to access the server
-  String response = "";
-  String gateway_IP = WiFi.gatewayIP().toString();
+	//Creating the variables we will use: "response" to keep the Server response and "address" to keep the address used to access the server
+	String response = "";
+	String gateway_IP = WiFi.gatewayIP().toString();
 	Serial.println("Get platform credentials...");
 
-  String address = "http://" + gateway_IP + ":8081/" + String(getChipId());
+	String address = "http://" + gateway_IP + ":8081/" + String(getChipId());
 	Serial.println("address=" + address);
 
+	//The IP of our client is the Gateway IP
+	HTTPClient http;
 
-  //The IP of our client is the Gateway IP
-	HTTPClient http; 
+	http.begin(address); //Specify request destination
 
-  http.begin(address);     //Specify request destination
-  
-  int statusCode = http.GET();
+	int statusCode = http.GET();
 
-	response=http.getString();
+	response = http.getString();
 
 	Serial.println("statusCode=" + String(statusCode));
 	Serial.println("response=" + String(response));
-  if (statusCode == 200){
-    File configFile = SPIFFS.open("/crd.json", "w");
-    if (!configFile) {
-      if (DEBUG) Serial.println("Could not open the file with write permition!");
-      return 0;
-    }
+	if (statusCode == 200)
+	{
+		File configFile = SPIFFS.open(_configFile, "w");
+		if (!configFile)
+		{
+			if (_debug)
+				Serial.println("Could not open the file with write permition!");
+			return 0;
+		}
 		Serial.println("Saving config file /crd.json");
-    configFile.print(response);
-    configFile.close();
+		configFile.print(response);
+		configFile.close();
 
-    //Removing the Wifi Configuration
-    SPIFFS.remove(wifiFile);
-    //save hinitial ealth state flags
-    saveFile(_healthFile,(char*)"000");
+		//Removing the Wifi Configuration
+		SPIFFS.remove(_wifiFile);
+		//save hinitial ealth state flags
+		saveFile(_healthFile, (char *)"000");
 
-    //wifiManager.resetSettings();
+		//wifiManager.resetSettings();
 
-    if (DEBUG){
-      Serial.print("Status code from server :");
-      Serial.println(statusCode);
-      Serial.print("Response body from server: ");
-      Serial.println(response);
-    }
-    return 1;
-  }
-  else {
-    return 0;
-  }
+		if (_debug)
+		{
+			Serial.print("Status code from server :");
+			Serial.println(statusCode);
+			Serial.print("Response body from server: ");
+			Serial.println(response);
+		}
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
-void KonkerDevice::setup(char newName[6]){
+void KonkerDevice::setup(){
 	pinMode(resetPin, OUTPUT);
 	digitalWrite(resetPin, HIGH);
 
@@ -379,7 +567,7 @@ void KonkerDevice::setup(char newName[6]){
 	Serial.println(konker.getMqttPort());
 
 
-	strncpy(_base_name, newName,6);
+	
 	#ifndef ESP32
 	String stringNewName=String(_base_name) + String(ESP.getChipId());
 	#else
@@ -401,7 +589,7 @@ void KonkerDevice::setup(char newName[6]){
   //tenta se conectar ao wifi configurado
   //caso já exista o arquivo de wifi ele vai tentar se conectar
   if(deviceWifi.connectToSavedWifi()){
-    if(getPlataformCredentials((char*)"/crd.json")){
+    if(setPlataformCredentials((char*)_configFile)){
 			checkConnections();
 		}
     return;
@@ -417,29 +605,30 @@ void KonkerDevice::setup(char newName[6]){
 			for(int i=0;i<deviceWifi.getNumWifiCredentials()-1;i++){
 				char tempSSID[32]="";
 				char tempPSK[64]="";
-				strcpy(tempSSID, wifiCredentials[i].savedSSID);
-				strcpy(tempPSK, wifiCredentials[i].savedPSK);
+				strcpy(tempSSID, deviceWifi.wifiCredentials[i].savedSSID);
+				strcpy(tempPSK, deviceWifi.wifiCredentials[i].savedPSK);
 				if(String(tempSSID).indexOf(WiFi.SSID(), 0)>0){
 					if(i==1){
-							strcpy(wifiCredentials[1].savedSSID, wifiCredentials[0].savedSSID);
-							strcpy(wifiCredentials[1].savedPSK, wifiCredentials[0].savedPSK);
+							strcpy(deviceWifi.wifiCredentials[1].savedSSID, deviceWifi.wifiCredentials[0].savedSSID);
+							strcpy(deviceWifi.wifiCredentials[1].savedPSK, deviceWifi.wifiCredentials[0].savedPSK);
 							
-							strcpy(wifiCredentials[0].savedSSID, tempSSID);
-							strcpy(wifiCredentials[0].savedPSK, tempPSK);
+							strcpy(deviceWifi.wifiCredentials[0].savedSSID, tempSSID);
+							strcpy(deviceWifi.wifiCredentials[0].savedPSK, tempPSK);
 					}
 					if(i==2){
-							strcpy(wifiCredentials[2].savedSSID, wifiCredentials[0].savedSSID);
-							strcpy(wifiCredentials[2].savedPSK, wifiCredentials[0].savedPSK);
+							strcpy(deviceWifi.wifiCredentials[2].savedSSID, deviceWifi.wifiCredentials[0].savedSSID);
+							strcpy(deviceWifi.wifiCredentials[2].savedPSK, deviceWifi.wifiCredentials[0].savedPSK);
 							
-							strcpy(wifiCredentials[0].savedSSID, tempSSID);
-							strcpy(wifiCredentials[0].savedPSK, tempPSK);
+							strcpy(deviceWifi.wifiCredentials[0].savedSSID, tempSSID);
+							strcpy(deviceWifi.wifiCredentials[0].savedPSK, tempPSK);
 					}
 				}
 			}
+			
 
-			for(int i=0;i<numWifiCredentials-1;i++){
-				Serial.printf("saving wifi '%s' password '%s'\n", wifiCredentials[i].savedSSID, wifiCredentials[i].savedPSK);
-				saveWifiConnectionInFile(wifiFile, wifiCredentials[i].savedSSID, wifiCredentials[i].savedPSK,i);
+			for(int i=0;i<deviceWifi.getNumWifiCredentials()-1;i++){
+				Serial.printf("saving wifi '%s' password '%s'\n", deviceWifi.wifiCredentials[i].savedSSID, deviceWifi.wifiCredentials[i].savedPSK);
+				deviceWifi.saveWifiInFile(_wifiFile, deviceWifi.wifiCredentials[i].savedSSID, deviceWifi.wifiCredentials[i].savedPSK,i);
 			}
 		}
 	}else{
@@ -447,7 +636,7 @@ void KonkerDevice::setup(char newName[6]){
 	}
 
 
-	arquivoWifiPreConfigurado=getPlataformCredentials((char*)"/crd.json");//se for outro nome é só mudar aqui
+	arquivoWifiPreConfigurado=setPlataformCredentials((char*)_configFile);//se for outro nome é só mudar aqui
 
 	while (!arquivoWifiPreConfigurado){
 		//only exits this function if connected or reached timout, only connect if specific signal strength is mesured (47dBm)
@@ -460,7 +649,7 @@ void KonkerDevice::setup(char newName[6]){
 		//se tiver arquivo pré wifi
 		//configura pré wifi
 		//Formato esperado: {"srv":"mqtt.demo.konkerlabs.net","prt":"1883","usr":"jnu56qt1bb1i","pwd":"3S7usR9g5K","prx":"data"}
-		arquivoWifiPreConfigurado=getPlataformCredentials((char*)"/crd.json");//se for outro nome é só mudar aqui
+		arquivoWifiPreConfigurado=setPlataformCredentials((char*)_configFile);//se for outro nome é só mudar aqui
 
 	}
 
@@ -471,12 +660,12 @@ void KonkerDevice::setup(char newName[6]){
 
 	//esta parte só chega se já passou pelo modo fábrica acima
 	//lembrando
-	//global variables: server, port, device_login, device_pass
+	//global variables: server, port, _device_login, _device_pass
 	//variables delcared in main.h from LibKonkerESP8266
 	//char server[64];
 	//int port;
-	//char device_login[32];
-	//char device_pass[32];
+	//char _device_login[32];
+	//char _device_pass[32];
 
 	//Tem arquivo wifi? Se tem configura o wifi
 	//se não tem entra em modo AP
@@ -494,7 +683,7 @@ void KonkerDevice::setup(char newName[6]){
 
 	//tenta conctar no wifi passado pelo app
 	//se falhar ou passar do timout,reboota
-	if(startAPForWifiCredentials(getChipId(),120000)){
+	if(deviceWifi.startApForWifiCredentials(getChipId(),120000)){
 		Serial.println("Credentials received, trying to connect to production WiFi");
 		if(!deviceWifi.connectToSavedWifi()){
 			Serial.println("Failed! Rebooting...");
@@ -509,8 +698,8 @@ void KonkerDevice::setup(char newName[6]){
 
 		Serial.println("WiFi configuration done!");
 		Serial.println("Saving wifi memory");
-		for(int i=0;i<numWifiCredentials;i++){
-			saveWifiConnectionInFile(wifiFile,wifiCredentials[i].savedSSID,wifiCredentials[i].savedPSK, i);
+		for(int i=0;i<deviceWifi.getNumWifiCredentials();i++){				
+			deviceWifi.saveWifiInFile(_wifiFile,deviceWifi.wifiCredentials[i].savedSSID,deviceWifi.wifiCredentials[i].savedPSK, i);
 		}
 
 
@@ -530,14 +719,10 @@ void KonkerDevice::setup(char newName[6]){
 		ESP.restart();
 		#endif
 	}
-
-
-
 }
 
-
-
-
+///////////////////
+///http
 bool KonkerDevice::pubHttp(char const channel[], char const msg[], int& ret_code){
   //throtle this call 
   if ((millis()-_last_time_http_request) < _millis_delay_per_http_request){
@@ -551,13 +736,11 @@ bool KonkerDevice::pubHttp(char const channel[], char const msg[], int& ret_code
   HTTPClient http;  //Declare an object of class HTTPClient
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Accept", "application/json");
-  http.setAuthorization(device_login, device_pass);
+  http.setAuthorization(_device_login, _device_pass);
 
-  char buffer[100];
-
-  buildHTTPPUBTopic(channel,buffer);
-
-  http.begin((String)buffer);
+  String pubUrl=konker.getHttpDomain()+ konker.getHttpPubTopic(_device_login,(String)channel);
+  
+  http.begin(pubUrl);
 
   int httpCode=http.POST(String(msg));
   //Serial.println("Publishing to " + String(topic) + "; Body: " + String(msg) + "; httpcode: " + String(httpCode));
@@ -566,13 +749,12 @@ bool KonkerDevice::pubHttp(char const channel[], char const msg[], int& ret_code
 
   ret_code = httpCode;
 
-  pubCode=interpretHTTPCode(httpCode);
+  pubCode=_interpretHTTPCode(httpCode);
 
 
   if (!pubCode){
     Serial.println("failed");
     Serial.println("");
-    failedComm=1;
     return 0;
   }else{
     Serial.println("sucess");
@@ -601,26 +783,24 @@ bool KonkerDevice::subHttp(char const channel[],CHANNEL_CALLBACK_SIGNATURE){
 
   HTTPClient http;  //Declare an object of class HTTPClient
   http.addHeader("Content-Type", "application/json");
-  http.setAuthorization(device_login, device_pass);
+  http.setAuthorization(_device_login, _device_pass);
 
-  char buffer[100];
 
-  buildHTTPSUBTopic(channel,buffer);
+  String pubUrl=konker.getHttpDomain()+ konker.getHttpSubTopic(_device_login,(String)channel);
+  
+  http.begin(pubUrl);
 
-  http.begin((String)buffer);
 
   int httpCode = http.GET();
 
 
-
   Serial.print(">");
 
-  subCode=interpretHTTPCode(httpCode);
+  subCode=_interpretHTTPCode(httpCode);
   
   if (!subCode){
     Serial.println("failed SUB request");
     Serial.println("");
-    failedComm=1;
   }else{
     Serial.println("sucess SUB request");
     Serial.println("");
@@ -650,20 +830,19 @@ bool KonkerDevice::testHTTPSubscribeConn(){
 
   HTTPClient http;  //Declare an object of class HTTPClient
   http.addHeader("Content-Type", "application/json");
-  http.setAuthorization(device_login, device_pass);
+  http.setAuthorization(_device_login, _device_pass);
 
-  char buffer[100];
+  String pubUrl=konker.getHttpDomain()+ konker.getHttpSubTopic(_device_login,"test");
+  
+  http.begin(pubUrl);
 
-  buildHTTPSUBTopic("test",buffer);
-
-  http.begin((String)buffer);
 
   int httpCode = http.GET();
 
   //Serial.println("Testing HTTP subscribe to: " + url_to_call + "; httpcode:" + String(httpCode));
   //Serial.print(">");
 
-  subCode=interpretHTTPCode(httpCode);
+  subCode=_interpretHTTPCode(httpCode);
 
 
   if (!subCode){
@@ -681,6 +860,73 @@ bool KonkerDevice::testHTTPSubscribeConn(){
     return 1;
   }
 }
+
+////////////////
+//mqtt
+
+
+bool KonkerDevice::pubMQTT(char const channel[], char const msg[]){
+	int pubCode=-1;
+	char topic[32];
+
+
+	konker.getMqttPubTopic(_device_login,(String)channel).toCharArray(topic,32);
+
+	Serial.println("Publishing to: " + String(topic) + " msg: " + msg );
+
+	delay(200);
+	pubCode=_client.publish(topic, msg);
+
+	if (pubCode!=1){
+		Serial.println("failed");
+		Serial.println("pubCode:" + (String)pubCode);
+		appendToFile(_healthFile,(char*)"1", _mqttFailureAdress);
+		delay(3000);
+		#ifndef ESP32
+		ESP.reset();
+		#else
+		ESP.restart();
+		#endif
+		return 0;
+	}else{
+		Serial.println("sucess");
+		Serial.println("pubCode:" + (String)pubCode);
+		return 1;
+	}
+
+}
+
+bool KonkerDevice::subMQTT(char const channel[],CHANNEL_CALLBACK_SIGNATURE){
+	int subCode=-1;
+	char topic[32];
+
+	konker.getMqttPubTopic(_device_login,(String)channel).toCharArray(topic,32);
+
+	Serial.println("Subscribing to: " + String(topic));
+
+	delay(200);
+	subCode=_client.subscribe(topic);
+
+	if (subCode!=1){
+		Serial.println("failed");
+		Serial.println("");
+		appendToFile(_healthFile,(char*)"1", _mqttFailureAdress);
+		delay(3000);
+		#ifndef ESP32
+		ESP.reset();
+		#else
+		ESP.restart();
+		#endif
+		return 0;
+	}else{
+		_subChanTuple.addSubChannelTuple(topic,chan_callback);
+		Serial.println("sucess");
+		Serial.println("");
+		return 1;
+	}
+
+}
+
 
 
 #endif
