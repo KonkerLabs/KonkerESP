@@ -1,4 +1,4 @@
-#include "DeviceWifi.h"
+#include "./deviceWifi.h"
 
 DeviceWifi::DeviceWifi(){
     _setDefaults();

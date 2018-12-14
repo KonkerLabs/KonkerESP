@@ -5,8 +5,8 @@
 #ifndef _KonkerDevice
 #define _KonkerDevice
 
-#include "konkerSettings.h"
-#include "deviceWifi.h"
+#include "./konkerSettings.h"
+#include "./deviceWifi.h"
 #include "./helpers/subChanTuple.h"
 #ifndef ESP32
 #include <ESP8266HTTPClient.h>

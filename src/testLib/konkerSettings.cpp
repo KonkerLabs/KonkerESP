@@ -1,4 +1,4 @@
-#include "KonkerSettings.h"
+#include "./konkerSettings.h"
 
 
 KonkerSettings::KonkerSettings(){

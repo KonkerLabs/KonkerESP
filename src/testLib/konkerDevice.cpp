@@ -1,5 +1,5 @@
 
-#include "KonkerDevice.h"
+#include "./konkerDevice.h"
 KonkerDevice* KonkerDevice::_instance = NULL;
 
 //private
