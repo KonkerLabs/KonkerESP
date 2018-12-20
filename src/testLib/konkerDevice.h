@@ -2,8 +2,6 @@
 #define __KONKER_DEVICE_H__
 
 #include "Arduino.h"
-#ifndef _KonkerDevice
-#define _KonkerDevice
 
 #include "./konkerSettings.h"
 #include "./deviceWifi.h"
@@ -16,6 +14,8 @@
 
 //mqtt
 #include <PubSubClient.h>
+
+#define BAUDRATE 115200
 
 class KonkerDevice{
   private:
@@ -65,6 +65,8 @@ class KonkerDevice{
     KonkerDevice(String newName, String httpDomain, String httpPubTopicFormat, String httpSubTopicFormat,
                  String mqttAdress, String mqttPubTopicFormat, String mqttSubTopicFormat, bool isEncripted);
 
+	void removeChar(char *str, char garbage);
+
   public:
 
 	static KonkerDevice* getInstance(String newName) { 
@@ -93,7 +95,7 @@ class KonkerDevice{
 
 
 	KonkerSettings konker;
-	DeviceWifi deviceWifi;
+	DeviceWifi& deviceWifi = *DeviceWifi::getInstance();
 
 	#ifndef ESP32
 	int resetPin=D5;
@@ -127,8 +129,5 @@ class KonkerDevice{
 
 };
 
-
-
-#endif
 
 #endif // __KONKER_DEVICE_H__

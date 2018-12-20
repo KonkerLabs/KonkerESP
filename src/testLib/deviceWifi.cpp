@@ -1,11 +1,20 @@
 #include "./deviceWifi.h"
 
+// initialize static variable 
+
+DeviceWifi *DeviceWifi::_instance = NULL;
+
 DeviceWifi::DeviceWifi(){
     _setDefaults();
 }
 
 DeviceWifi::DeviceWifi(char encriptKeyWord[32]){
     _setDefaults();
+	strncpy(_encriptKeyWord, encriptKeyWord, 32);
+	_encripted = true;
+}
+
+void DeviceWifi::setEncriptKeyword(char encriptKeyWord[32]) {
 	strncpy(_encriptKeyWord, encriptKeyWord, 32);
 	_encripted = true;
 }
@@ -77,12 +86,12 @@ uint8_t *DeviceWifi::_convert_iv(char str[]){
 
 void DeviceWifi::_wiFiApConnected() {
 	Serial.println("Conectado");
-	_apConnected=1;
+	DeviceWifi::_instance->_apConnected=1;
 }
 
 void DeviceWifi::_wiFiApDisconnected() {
 	Serial.println("Desconectou");
-	_apConnected=0;
+	DeviceWifi::_instance->_apConnected=0;
 }
 
 
@@ -305,16 +314,12 @@ void DeviceWifi::setupWiFiAp(char *apName){
 	WiFi.softAPmacAddress(mac);
 
 	//<TO-DO>
-	/*
 	#ifndef ESP32
 	WiFi.onEvent(_wiFiEvent,WIFI_EVENT_ANY);
 	#else
 	WiFi.onEvent(_wiFiEventConnected,SYSTEM_EVENT_AP_STACONNECTED);
 	WiFi.onEvent(_wiFiEventDisconnected,SYSTEM_EVENT_AP_STADISCONNECTED);
 	#endif
-	*/
-
-
 
 	const IPAddress gateway_IP(192, 168, 4, 1); // gateway IP
 	const IPAddress subnet_IP( 255, 255, 255, 0); // standard subnet
@@ -372,17 +377,20 @@ void DeviceWifi::getWifiCredentialsEncripted(){
 
 	//get up to 3 wifi credentials
 	for(int i=0;i<3;i++){
-		String argSSID = urlDecode(_webServer->arg("s" + String(i)));
-		String argPSK = urlDecode(_webServer->arg("p" + String(i)));
+		String argSSID = _instance->urlDecode(_instance->_webServer->arg("s" + String(i)));
+		String argPSK = _instance->urlDecode(_instance->_webServer->arg("p" + String(i)));
 
-		Serial.println("argSSID" + String(i) + "=" + argSSID);
-		Serial.println("argPSK" + String(i) + "=" + argPSK);
+		Serial.println("SSID#" + String(i) + "=" + argSSID);
+		Serial.println(" PWD#" + String(i) + "=" + argPSK);
 
-		if(argSSID!="" && argPSK!=""){
-			argSSID.toCharArray(wifiCredentials[i].savedSSID, 32);
+		// NOTE: permit to define null password for wifi networks
+
+		if(argSSID!=""){
+		// if(argSSID!="" && argPSK!=""){
+			argSSID.toCharArray(_instance->wifiCredentials[i].savedSSID, 32);
 			//argPSK.toCharArray(savedPSK, 64);
-			_numWifiCredentials++;
-			_gotCredentials=1;
+			_instance->_numWifiCredentials++;
+			_instance->_gotCredentials=1;
 			//Decrypt Password
 			char pass[argPSK.length()+1];
 			argPSK.toCharArray(pass, argPSK.length()+1);
@@ -392,34 +400,34 @@ void DeviceWifi::getWifiCredentialsEncripted(){
 			char iv2[17] = "sK33DE5TaC9nRUSt";
 			uint8_t var3[64];
 			uint8_t var4[64];
-			uint8_t *convKeyLogin=_convert_key(_encriptKeyWord);
-			uint8_t *convKeySSID=_convert_key(mySSID);
+			uint8_t *convKeyLogin=_instance->_convert_key(_instance->_encriptKeyWord);
+			uint8_t *convKeySSID=_instance->_convert_key(mySSID);
 
-			Serial.print("_convert_key(_encriptKeyWord): " + String(_encriptKeyWord) + " ");
+			Serial.print("_convert_key(_encriptKeyWord): " + String(_instance->_encriptKeyWord) + " ");
 			for (int j = 0; j < 16; j++) {
 					Serial.print(convKeyLogin[j]);
 			}
 			Serial.println("");
 
 			Serial.print("_convert_key(mySSID): "+ String(mySSID)+ " ");
-			for (int j = 0; j < 16; j++) {
+			for (int j = 0; j < 16; j++) {		
 					Serial.print(convKeySSID[j]);
 			}
 			Serial.println("");
 
-			AES deck1(_convert_key(_encriptKeyWord), _convert_iv(iv2), AES::AES_MODE_128, AES::CIPHER_DECRYPT);
-			AES deck2(_convert_key(mySSID), _convert_iv(iv1), AES::AES_MODE_128, AES::CIPHER_DECRYPT);
-			deck1.process(_convert_hex(pass), var3, _plength);
-			deck2.process(var3, var4, _plength);
-			for (int j = 0; j < _plength; j++) {
-					wifiCredentials[i].savedPSK[j]=var4[j];
+			AES deck1(_instance->_convert_key(_instance->_encriptKeyWord), _instance->_convert_iv(iv2), AES::AES_MODE_128, AES::CIPHER_DECRYPT);
+			AES deck2(_instance->_convert_key(mySSID), _instance->_convert_iv(iv1), AES::AES_MODE_128, AES::CIPHER_DECRYPT);
+			deck1.process(_instance->_convert_hex(pass), var3, _instance->_plength);
+			deck2.process(var3, var4, _instance->_plength);
+			for (int j = 0; j < _instance->_plength; j++) {
+					_instance->wifiCredentials[i].savedPSK[j]=var4[j];
 			}
-			for (int j = 1; j <= _plength; j++) {
-					if (wifiCredentials[i].savedPSK[_plength-j]==' ' || wifiCredentials[i].savedPSK[_plength-j] == '\0'){
-						wifiCredentials[i].savedPSK[_plength-j]='\0';
+			for (int j = 1; j <= _instance->_plength; j++) {
+					if (_instance->wifiCredentials[i].savedPSK[_instance->_plength-j]==' ' || _instance->wifiCredentials[i].savedPSK[_instance->_plength-j] == '\0'){
+						_instance->wifiCredentials[i].savedPSK[_instance->_plength-j]='\0';
 					}else {
-						Serial.printf("char @ position %d = %c", j, wifiCredentials[i].savedPSK[_plength-j]);
-						Serial.printf("psk%d='%s'", i, wifiCredentials[i].savedPSK);
+						Serial.printf("char @ position %d = %c", j, _instance->wifiCredentials[i].savedPSK[_instance->_plength-j]);
+						Serial.printf("psk%d='%s'", i, _instance->wifiCredentials[i].savedPSK);
 						break;
 					}
 			}
@@ -428,14 +436,14 @@ void DeviceWifi::getWifiCredentialsEncripted(){
 
 	}
 
-	if(_gotCredentials){
+	if(_instance->_gotCredentials){
 		// reset wifi credentials from file
 		//Removing the Wifi Configuration
-		SPIFFS.remove(_wifiFile);
+		SPIFFS.remove(_instance->_wifiFile);
 	}
 
 	
-	_webServer->send(200, "text/html", page);
+	_instance->_webServer->send(200, "text/html", page);
 
 
 
@@ -444,32 +452,36 @@ void DeviceWifi::getWifiCredentialsEncripted(){
 //while connected to ESP wifi make a GET to http://192.168.4.1/wifisave?s=SSID_NAME&p=SSID_PASSWORD
 void DeviceWifi::getWifiCredentialsNotEncripted(){
 	Serial.println("Handle getWifiCredentials");
-	String page = "<http><body><b>getWifiCredentials</b></body></http>";
+	String page = "<http><body><b>getWifiCredentials</b><table><tr>";
 
 	//get up to 3 wifi credentials
 	for(int i=0;i<3;i++){
-		String argSSID = urlDecode(_webServer->arg("s" + String(i)));
-		String argPSK = urlDecode(_webServer->arg("p" + String(i)));
+		String argSSID = DeviceWifi::_instance->urlDecode(DeviceWifi::_instance->_webServer->arg("s" + String(i)));
+		String argPSK = _instance->urlDecode(DeviceWifi::_instance->_webServer->arg("p" + String(i)));
 
-		Serial.println("argSSID" + String(i) + "=" + argSSID);
-		Serial.println("argPSK" + String(i) + "=" + argPSK);
+		Serial.println("SSID#" + String(i) + "=" + argSSID);
+		Serial.println(" PWD#" + String(i) + "=" + argPSK);
 
 
-		if(argSSID!="" && argPSK!=""){
-			argSSID.toCharArray(wifiCredentials[i].savedSSID, 32);
-			argPSK.toCharArray(wifiCredentials[i].savedPSK, 64);
-			_numWifiCredentials++;
-			_gotCredentials=1;
+		// NOTE: accept null passwords for networking
+		if(argSSID!=""){
+			argSSID.toCharArray(_instance->wifiCredentials[i].savedSSID, 32);
+			argPSK.toCharArray(_instance->wifiCredentials[i].savedPSK, 64);
+			_instance->_numWifiCredentials++;
+			_instance->_gotCredentials=1;
+			page += "<td>" + argSSID + "</td>";
 		}
 	}
 
-	if(_gotCredentials){
+	if(_instance->_gotCredentials){
 		// reset wifi credentials from file
 		//Removing the Wifi Configuration
-		SPIFFS.remove(_wifiFile);
+		SPIFFS.remove(_instance->_wifiFile);
 	}
 
-	_webServer->send(200, "text/html", page);
+	page = page + "</tr></table></body></http>";
+
+	_instance->_webServer->send(200, "text/html", page);
 }
 
 
@@ -611,9 +623,9 @@ bool DeviceWifi::startApForWifiCredentials(char *apName, int timoutMilis){
 
 
   if (_encripted==true){
-    	//_webServer->on("/wifisave", this->getWifiCredentialsEncripted);
+    	_webServer->on("/wifisave", this->getWifiCredentialsEncripted);
   }else{
-    	//_webServer->on("/wifisave", this->getWifiCredentialsNotEncripted);
+    	_webServer->on("/wifisave", this->getWifiCredentialsNotEncripted);
   }
 
 	_webServer->begin();

@@ -1,5 +1,5 @@
-
 #include "./konkerDevice.h"
+
 KonkerDevice* KonkerDevice::_instance = NULL;
 
 //private
@@ -14,6 +14,17 @@ bool KonkerDevice::_interpretHTTPCode(int httpCode){
   }
 }
 
+void KonkerDevice::removeChar(char *str, char garbage) {
+
+    char *src, *dst;
+    for (src = dst = str; *src != '\0'; src++) {
+        *dst = *src;
+        if (*dst != garbage) dst++;
+    }
+    *dst = '\0';
+}
+
+
 void KonkerDevice::_setDefaults(){
 	strncpy(_base_name,"S0000",6);
 	strncpy(_healthFile,"/health.json",13);
@@ -21,6 +32,22 @@ void KonkerDevice::_setDefaults(){
 	strncpy(_wifiFile,"/wifi.json",13);
 	//mqtt
 	_client=PubSubClient(_espClient);
+	// define chipID name 
+	char buffer[64];
+	#ifdef ESP32
+	String stringNewName="" + (uint32_t)ESP.getEfuseMac();
+	strncpy(buffer, stringNewName.c_str(), 64);
+	#else // ESP8266
+//	String stringNewName=String(ESP.getChipId());
+	String stringNewName=String(WiFi.macAddress());
+	strncpy(buffer, stringNewName.c_str(), 64);
+	this->removeChar(buffer, ':');
+
+	#endif
+	strncpy(_chipId, name, 32);
+	if (strlen(_chipId) < 31) {
+		strncpy(&_chipId[strlen(_chipId)], buffer, 32-strlen(_chipId));
+	}
 }
 
 
@@ -326,13 +353,17 @@ bool KonkerDevice::setPlataformCredentials(char *configFilePath){
 		return 0;
 	}
 
+	String xtemp;
+	configJson.prettyPrintTo(xtemp);
+	Serial.println(xtemp);
+
 	//////////////////////////
 	///step4 check for empty values
 	if(strcmp(configJson[_httpJsonKeyword], "") == 0){
 		Serial.println("Unexpected json format, " + _httpJsonKeyword + " is empty");
 		return 0;
 	}
-	if(configJson[_mqttJsonKeyword]== 0){
+	if(strcmp(configJson[_mqttJsonKeyword], "") == 0){
 		Serial.println("Unexpected json format, " + _mqttJsonKeyword + " is empty");
 		return 0;
 	}
@@ -441,7 +472,7 @@ bool  KonkerDevice::getPlataformCredentialsFromGateway(){
 
 		//Removing the Wifi Configuration
 		SPIFFS.remove(_wifiFile);
-		//save hinitial ealth state flags
+		//save initial health state flags
 		saveFile(_healthFile, (char *)"000");
 
 		//wifiManager.resetSettings();
@@ -462,8 +493,11 @@ bool  KonkerDevice::getPlataformCredentialsFromGateway(){
 }
 
 void KonkerDevice::setup(){
-	pinMode(resetPin, OUTPUT);
-	digitalWrite(resetPin, HIGH);
+
+	Serial.begin(BAUDRATE);
+
+	pinMode(resetPin, INPUT_PULLUP);
+	// digitalWrite(resetPin, HIGH);
 
 	Serial.print("HttpDomain: ");
 	Serial.println(konker.getHttpDomain());
@@ -490,9 +524,19 @@ void KonkerDevice::setup(){
 	//cria file system se não existir
 	spiffsMount();
 
+	Serial.print("RESET PIN = ");
+	Serial.print(resetPin);
+	Serial.print(" state=");
+	Serial.print(digitalRead(resetPin));
+	Serial.print(" LOW=");
+	Serial.println(LOW);
+
+
 	if (digitalRead(resetPin) == LOW){//reset and format FS all if resetPin is low
 		Serial.println("resetPin pin in LOW state. Formating FS.. (WAIT FOR REBOOT)");
 		clearDeviceConfig();
+	} else {
+		Serial.println("resetPin in HIGH state. Operational mode");
 	}
 
   //tenta se conectar ao wifi configurado

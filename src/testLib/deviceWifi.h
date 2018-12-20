@@ -71,7 +71,7 @@ class ConfigWifi{
 	IPAddress ip;   
 	IPAddress gateway;   
 	IPAddress subnet;  
-  };
+};
 
 
 
@@ -114,15 +114,15 @@ class DeviceWifi{
 
 
         #ifdef ESP32
-        void _wiFiEventConnected(system_event_id_t event);
-        void _wiFiEventDisconnected(system_event_id_t event);
+        static void _wiFiEventConnected(system_event_id_t event);
+        static void _wiFiEventDisconnected(system_event_id_t event);
         #else
-        void _wiFiEvent(WiFiEvent_t event);
+        static void _wiFiEvent(WiFiEvent_t event);
         #endif
 
 
-		void _wiFiApConnected();
-		void _wiFiApDisconnected();
+		static void _wiFiApConnected();
+		static void _wiFiApDisconnected();
 
         void _setDefaults();
 
@@ -137,9 +137,21 @@ class DeviceWifi{
 		WebServer* _webServer;
 		#endif
 
+        DeviceWifi(char encriptKeyWord[32]);
+
+		static DeviceWifi *_instance; 
+
     public:
         DeviceWifi();
-        DeviceWifi(char encriptKeyWord[32]);
+		static DeviceWifi* getInstance() {
+			if (!DeviceWifi::_instance) {
+				DeviceWifi::_instance = new DeviceWifi();
+			}
+			return DeviceWifi::_instance;
+		}
+		
+		void setEncriptKeyword(char encriptKeyWord[32]);
+
         ConfigWifi wifiConfig;
         WifiCredentials wifiCredentials[3];
 		int getNumWifiCredentials();
@@ -157,8 +169,8 @@ class DeviceWifi{
 		void setupWiFiAp(char *apName);
 		void charUrlDecode(char *dst, const char *src);
 		String urlDecode(String source);
-		void getWifiCredentialsEncripted();
-		void getWifiCredentialsNotEncripted();
+		static void getWifiCredentialsEncripted();
+		static void getWifiCredentialsNotEncripted();
 		void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64]);
 		void setWifiCredentialsNotEncripted(char SSID1[32],char PSK1[64],char SSID2[32],char PSK2[64]);
 		void setWifiCredentialsNotEncripted(
