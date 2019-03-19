@@ -49,7 +49,7 @@ void healthUpdate(char *health_channel){
 
   char buffer [16];
   unsigned char bytes[4];
-  bytes[0] = WiFi.localIP() & 0xFF;
+  bytes[0] = (WiFi.localIP() >> 0) & 0xFF;
   bytes[1] = (WiFi.localIP() >> 8) & 0xFF;
   bytes[2] = (WiFi.localIP() >> 16) & 0xFF;
   bytes[3] = (WiFi.localIP() >> 24) & 0xFF; 
