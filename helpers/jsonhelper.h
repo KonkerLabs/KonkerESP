@@ -36,14 +36,14 @@ long long char2LL(char *str){
 
 
 //DEPRECATED, use directly >> jsonMSG.printTo(bufferJ, sizeof(bufferJ));
-//char *buildJSONmsg(JsonObject& jsonMSG){
+//char *buildJSONmsg(JsonObject jsonMSG){
 //	jsonMSG.printTo(bufferJ, sizeof(bufferJ));
 //	return bufferJ;
 //}
 
 
 
-bool parse_JSON_item(JsonObject& jsonMSG, char *itemName, char *returnVal){
+bool parse_JSON_item(JsonObject jsonMSG, char *itemName, char *returnVal){
 	if (jsonMSG.containsKey(itemName)){
 		strcpy(returnVal,jsonMSG[itemName]);
 		return 1;
@@ -52,24 +52,24 @@ bool parse_JSON_item(JsonObject& jsonMSG, char *itemName, char *returnVal){
 	}
 }
 
-bool parse_JSONArr_item(JsonObject& jsonMSG, char *itemName, char *returnVal){
+bool parse_JSONArr_item(JsonObject jsonMSG, char *itemName, char *returnVal){
 	return parse_JSON_item(jsonMSG,itemName, returnVal);
 }
 
 
 //----------------- Decodificacao da mensagem Json In -----------------------------
 bool parse_JSON_item(String json, char *itemName, char *returnVal){
-	StaticJsonBuffer<1024> jsonBuffer;
-	JsonObject& jsonMSG = jsonBuffer.parseObject(json);
+	StaticJsonDocument<1024> jsonBuffer;
+	JsonObject jsonMSG = jsonBuffer.parseObject(json);
 	return parse_JSON_item(jsonMSG,itemName, returnVal);
 }
 
 
 bool parse_JSON_dataItem_from_array(String json, char *itemName, char *returnVal){
 	const char *ival = NULL;
-	StaticJsonBuffer<1024> jsonBuffer;
-	JsonArray& array = jsonBuffer.parseArray(json);
-	JsonObject& jsonMSG = array[0]["data"];
+	StaticJsonDocument<1024> jsonBuffer;
+	JsonArray array = jsonBuffer.parseArray(json);
+	JsonObject jsonMSG = array[0]["data"];
 	if (jsonMSG.containsKey(itemName)){
 		strcpy(returnVal,jsonMSG[itemName]);
 		return 1;
@@ -93,9 +93,9 @@ bool parseJSON_data(String json, char *itemName, char *returnVal){
 
 void  parse_JSON_timestamp(String json, char *chrTS, int chrTSsize){
 	const char *ival = NULL;
-	StaticJsonBuffer<1024> jsonBuffer;
-	JsonArray& array = jsonBuffer.parseArray(json);
-	JsonObject& jsonMSG = array[0]["meta"];
+	StaticJsonDocument<1024> jsonBuffer;
+	JsonArray array = jsonBuffer.parseArray(json);
+	JsonObject jsonMSG = array[0]["meta"];
 	if (jsonMSG.containsKey("timestamp")) ival = jsonMSG["timestamp"];
 	//char *it = (char*)ival;
 	strncpy(chrTS,(char*)ival,chrTSsize);
@@ -104,7 +104,7 @@ void  parse_JSON_timestamp(String json, char *chrTS, int chrTSsize){
 
 
 
-void updateJSON(JsonObject& jsonToUpdate,  String keyNameToSave,  String itemValue){
+void updateJSON(JsonObject jsonToUpdate,  String keyNameToSave,  String itemValue){
 	if (jsonToUpdate.containsKey(keyNameToSave)){
 		Serial.print("Key json found: " + keyNameToSave);
 		String fileValue=jsonToUpdate[keyNameToSave];
@@ -124,7 +124,7 @@ void updateJSON(JsonObject& jsonToUpdate,  String keyNameToSave,  String itemVal
 
 
 
-void updateJSON(JsonObject& jsonToUpdate, JsonObject& jsonNewValues){
+void updateJSON(JsonObject jsonToUpdate, JsonObject jsonNewValues){
 	//Serial.println("Checando valores recebidos..");
 	for (JsonObject::iterator it=jsonNewValues.begin(); it!=jsonNewValues.end(); ++it) {
 		String keyNameToSave=it->key;
@@ -135,7 +135,7 @@ void updateJSON(JsonObject& jsonToUpdate, JsonObject& jsonNewValues){
 
 
 
-unsigned int updateJsonArrayFile(String filePath, JsonObject& jsonNewValues, unsigned int arrayIndex){
+unsigned int updateJsonArrayFile(String filePath, JsonObject jsonNewValues, unsigned int arrayIndex){
 	char fileContens[1024];
 	//first read file...
 	Serial.println("updateJsonArrayFile, opening file to update");
@@ -143,8 +143,8 @@ unsigned int updateJsonArrayFile(String filePath, JsonObject& jsonNewValues, uns
 		Serial.println("Parsing: " + (String)fileContens);
 	}else{
 		Serial.println("Failed to open, creating it :" + filePath);
-		StaticJsonBuffer<200> jsonBuffer;
-		JsonArray& array = jsonBuffer.createArray();
+		StaticJsonDocument<200> jsonBuffer;
+		JsonArray array = jsonBuffer.createArray();
 		array.add(jsonNewValues);
 		array.printTo(bufferJ, sizeof(bufferJ));
 		if(!saveFile(filePath, bufferJ)){
@@ -158,8 +158,8 @@ unsigned int updateJsonArrayFile(String filePath, JsonObject& jsonNewValues, uns
 
 
 	//updating file
-	DynamicJsonBuffer jsonBuffer;
-	JsonArray& array = jsonBuffer.parseArray(fileContens);
+	DynamicJsonDocument jsonBuffer(1024);
+	JsonArray array = jsonBuffer.parseArray(fileContens);
 	if (array.success()) {
 		String jsonStr;
 		jsonNewValues.printTo(jsonStr);
@@ -191,8 +191,8 @@ unsigned int updateJsonArrayFile(String filePath, JsonObject& jsonNewValues, uns
 unsigned int updateJsonArrayFile(String filePath, String jsonString, unsigned int arrayIndex){
 	Serial.println("updateJsonArrayFile, parsing jsonString..");
 	//updating file
-	DynamicJsonBuffer jsonBuffer;
-	JsonObject& jsonParsed = jsonBuffer.parseObject(jsonString);
+	DynamicJsonDocument jsonBuffer(1024);
+	JsonObject jsonParsed = jsonBuffer.parseObject(jsonString);
 	if (jsonParsed.success()) {
 		return updateJsonArrayFile(filePath,jsonParsed, arrayIndex);
 	}else{
@@ -201,7 +201,7 @@ unsigned int updateJsonArrayFile(String filePath, String jsonString, unsigned in
 	}
 }
 
-bool updateJsonFile(String filePath, JsonObject& jsonNewValues){
+bool updateJsonFile(String filePath, JsonObject jsonNewValues){
 	char fileContens[1024];
 	//first read file...
 	Serial.println("updateJsonFile, opening file to update");
@@ -221,8 +221,8 @@ bool updateJsonFile(String filePath, JsonObject& jsonNewValues){
 
 
 	//updating file
-	DynamicJsonBuffer jsonBuffer;
-	JsonObject& jsonFromFile = jsonBuffer.parseObject(fileContens);
+	DynamicJsonDocument jsonBuffer(1024);
+	JsonObject jsonFromFile = jsonBuffer.parseObject(fileContens);
 	if (jsonFromFile.success()) {
 		Serial.println("Updating json readed from file");
 		updateJSON(jsonFromFile,jsonNewValues);
@@ -240,8 +240,8 @@ bool updateJsonFile(String filePath, JsonObject& jsonNewValues){
 bool updateJsonFile(String filePath, String jsonString){
 	Serial.println("updateJsonFile, parsing jsonString..");
 	//updating file
-	DynamicJsonBuffer jsonBuffer;
-	JsonObject& jsonParsed = jsonBuffer.parseObject(jsonString);
+	DynamicJsonDocument jsonBuffer(1024);
+	JsonObject jsonParsed = jsonBuffer.parseObject(jsonString);
 	if (jsonParsed.success()) {
 		return updateJsonFile(filePath,jsonParsed);
 	}else{
@@ -263,8 +263,8 @@ bool  getJsonItemFromFile(String filePath, char *itemName, char *returnVal){
 	}
 
 	//updating file
-	DynamicJsonBuffer jsonBuffer;
-	JsonObject& fileJson = jsonBuffer.parseObject(jsonfileContens);
+	DynamicJsonDocument jsonBuffer(1024);
+	JsonObject fileJson = jsonBuffer.parseObject(jsonfileContens);
 	if (fileJson.success()) {
 		return parse_JSON_item(fileJson,itemName,returnVal);
 	}else{
@@ -286,8 +286,8 @@ bool  getJsonArrayItemFromFile(String filePath, unsigned int arrayIndex, char *i
 	}
 
 	//updating file
-	DynamicJsonBuffer jsonBuffer;
-	JsonArray& array = jsonBuffer.parseArray(jsonfileContens);
+	DynamicJsonDocument jsonBuffer(1024);
+	JsonArray array = jsonBuffer.parseArray(jsonfileContens);
 	if (array.success()) {
 		if(arrayIndex>(array.size()-1)){
 			return 0;

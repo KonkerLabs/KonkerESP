@@ -478,7 +478,7 @@ bool getPlataformCredentials(char *configFilePath){
 	///step2 config file opened
 	Serial.println("Parsing: " + (String)fileContens);
 	DynamicJsonBuffer jsonBuffer;
-	JsonObject& configJson = jsonBuffer.parseObject(fileContens);
+	JsonObject configJson = jsonBuffer.parseObject(fileContens);
 	if (configJson.success()) {
 		Serial.println("Json file parsed!");
 	}else{

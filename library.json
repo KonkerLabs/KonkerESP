@@ -1,8 +1,8 @@
 {
 	"name": "KonkerESP",
-	"version": "2.1.1",
+	"version": "3.0.5",
 	"keywords": "Konker, espressif8266, espressif32, MQTT, rest, iot",
-	"description": "espressif8266 and espressif32 Library for Konker enabled products",
+	"description": "espressif8266 and espressif32 Library for Konker enabled products, support for ArduinoJson 6.x",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/KonkerLabs/KonkerESP"
@@ -16,7 +16,11 @@
 			"*.doxyfile",
 			"*.pdf"
 		],
-		"include": null
+		"include": [
+			"*.*",
+			"*/*",
+			"konker.h"
+		]
 	},
 	"authors": [{
 			"name": "Érico Netto",
